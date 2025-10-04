@@ -62,21 +62,18 @@ class HumanoTicketsServiceProvider extends PackageServiceProvider
 		// Ensure permissions exist for menus and access
 		try {
 			if (Schema::hasTable('permissions') && class_exists(Permission::class)) {
-				$permissions = [
-					'ticket.list',
-					'ticket.show',
-					'ticket.create',
-					'ticket.edit',
-					'ticket.destroy',
-				];
-
-				foreach ($permissions as $name) {
-					Permission::firstOrCreate(['name' => $name], ['guard_name' => 'web']);
+				// Run the permissions seeder
+				if (class_exists(\HumanoTickets\Database\Seeders\TicketsPermissionsSeeder::class)) {
+					(new \HumanoTickets\Database\Seeders\TicketsPermissionsSeeder())->run();
 				}
 
+				// Grant all ticket permissions to admin role
 				$adminRole = class_exists(Role::class) ? Role::where('name', 'admin')->first() : null;
 				if ($adminRole) {
-					$adminRole->givePermissionTo($permissions);
+					$ticketPermissions = Permission::where('name', 'LIKE', 'ticket.%')->pluck('name')->toArray();
+					if (!empty($ticketPermissions)) {
+						$adminRole->givePermissionTo($ticketPermissions);
+					}
 				}
 			}
 		} catch (\Throwable $e) {
