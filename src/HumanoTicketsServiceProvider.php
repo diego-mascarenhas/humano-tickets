@@ -39,6 +39,8 @@ class HumanoTicketsServiceProvider extends PackageServiceProvider
 							'icon' => 'ti ti-ticket',
 							'description' => 'Support tickets management system',
 							'is_core' => false,
+							'group' => 'support',
+							'order' => 2,
 							'status' => 1,
 						]
 					);
@@ -62,17 +64,22 @@ class HumanoTicketsServiceProvider extends PackageServiceProvider
 		// Ensure permissions exist for menus and access
 		try {
 			if (Schema::hasTable('permissions') && class_exists(Permission::class)) {
-				// Run the permissions seeder
-				if (class_exists(\HumanoTickets\Database\Seeders\TicketsPermissionsSeeder::class)) {
-					(new \HumanoTickets\Database\Seeders\TicketsPermissionsSeeder())->run();
+				// Create permissions directly instead of using seeder
+				$ticketPermissions = [
+					'ticket.index', 'ticket.list', 'ticket.create', 'ticket.show',
+					'ticket.edit', 'ticket.store', 'ticket.update', 'ticket.destroy'
+				];
+
+				foreach ($ticketPermissions as $permission) {
+					Permission::firstOrCreate(['name' => $permission]);
 				}
 
 				// Grant all ticket permissions to admin role
 				$adminRole = class_exists(Role::class) ? Role::where('name', 'admin')->first() : null;
 				if ($adminRole) {
-					$ticketPermissions = Permission::where('name', 'LIKE', 'ticket.%')->pluck('name')->toArray();
-					if (!empty($ticketPermissions)) {
-						$adminRole->givePermissionTo($ticketPermissions);
+					$createdPermissions = Permission::whereIn('name', $ticketPermissions)->get();
+					if ($createdPermissions->isNotEmpty()) {
+						$adminRole->givePermissionTo($createdPermissions);
 					}
 				}
 			}
